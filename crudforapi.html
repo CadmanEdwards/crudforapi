@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+
+  <ol>
+    <li>Command
+      <div>
+        php artisan make:model ModelName -mcr --api
+      </div>   
+    </li>
+
+    <li>Command
+      <div>
+        php artisan make:request ModelRequest
+      </div>   
+    </li>
+
+    <li>api.php
+      <div>
+        use App\Http\Controllers\YourController;
+      </div>   
+      <div>
+        Route::resource('endpoint',MenuController::class);
+      </div>
+    </li>
+    
+    <li>YourModel.php
+      <div>
+        protected $guarded = [];
+      </div>   
+    </li>
+
+    <li>YourController.php
+      <div>
+        <pre>
+          namespace App\Http\Controllers;
+
+          
+          use Illuminate\Http\Request;
+          use App\Http\Requests\MenuRequest as ModelRequest;
+          use App\Models\Menu as Model;
+          use App\Traits\DoJob;
+          
+          class MenuController extends Controller
+          {
+              use DoJob;
+          
+              public function index()
+              {
+                  return Model::get();
+              }
+          
+              public function show(Model $model)
+              {
+                  return Model::find($model->id);
+              }
+                 
+              public function store(ModelRequest $request,Model $model)
+              {  
+                  return DoJob::doJob('added',Model::create($request->validated()),null,class_basename($model));
+              }
+          
+              public function update(ModelRequest $request, Model $model,$id)
+              {
+                  return DoJob::doJob('updated',$model::whereId($id)->update($request->validated()),$id,class_basename($model));
+              }
+           
+              public function destroy(Model $model,$id)
+              {
+                  return DoJob::doJob('deleted', $model::whereId($id)->delete() ,null, class_basename($model));
+              }
+          }
+        </pre>
+
+      </div>   
+    </li>
+    <li>
+      <div> YourTrait.php</div>
+
+      <div>
+        Create trait and paste mentioned code for crud
+      </div>
+
+      <pre>
+        namespace App\Traits;
+
+
+trait DoJob {
+
+    public static function doJob($action,$job,$id = null,$model)
+    { 
+        
+        try {
+
+            $m = '\\App\Models\\' . $model;
+            
+            $last_id = gettype($job) == 'object' ? $job->id : $id;
+
+            $response = [
+                'payload' => $m::find($last_id), 
+                'message' => $model . ' has been ' . $action,
+                'status' => true
+            ];
+    
+            return response()->json($response,200);
+
+        } catch (\Throwable $th) { throw $th; }
+    }
+}
+      </pre>
+    </li>
+
+    <li>
+      <div>YourAnotherTrait</div>
+      <div>create another trait and paste below mentioned code for API exceptions</div>
+      <pre>
+        
+        namespace App\Traits;
+
+        use Illuminate\Foundation\Http\FormRequest;
+        use Illuminate\Contracts\Validation\Validator;
+        use Illuminate\Http\Exceptions\HttpResponseException;
+
+        trait failedValidation {
+
+            protected function failedValidation(Validator $validator) { 
+                throw new HttpResponseException(
+                  response()->json([
+                    'status' => false,
+                    'errors' => $validator->errors()->all()
+                  ], 422)
+                ); 
+              }
+        }
+
+      </pre>
+    </li>
+
+    <li> Command
+      <div>
+        php artisan migrate
+      </div>
+    </li>
+  </ol>
+  <style>
+    li {
+    border-radius: 5px;
+    margin: 15px;
+    background: #e9e9e9;
+    padding: 15px;
+}
+  </style>
+</body>
+</html>
